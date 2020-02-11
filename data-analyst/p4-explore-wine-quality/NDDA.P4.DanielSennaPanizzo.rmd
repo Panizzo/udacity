@@ -1,0 +1,725 @@
+---
+title: "Qualidade de Vinhos Tintos e Brancos"
+author: "Análise exploratória de dados por Daniel Senna Panizzo"
+date: "9 de agosto de 2017"
+output:
+  html_document: default
+---
+
+### 1. RESUMO
+
+Este relatório irá explorar 11 propriedades químicas de um conjunto de 3.000 variantes do "Vinho Verde" Português, sendo 1.500 vinhos tintos e 1.500 vinhos brancos. Este conjunto de vinhos foi avaliado por, pelo menos, três especialistas que forneceram notas entre 0 (Ruim) e 10 (Excelente) para cada vinho. O intuito deste projeto é avaliar quais destas propriedades químicas influenciam na qualidade dos vinhos.
+
+```{r Bibliotecas, include=FALSE}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(gridExtra)
+library(reshape2)
+library(GGally)
+library(corrplot)
+```
+
+```{r Preparação dos dados, include=FALSE}
+# Prepara os dados de vinhos tintos
+wine.red <- read.csv('wineQualityReds.csv', sep = ",")
+wine.red$type <- 'Red'
+
+# Prepara os dados de vinhos brancos
+wine.white <- read.csv('wineQualityWhites.csv', sep = ",")
+wine.white$type <- 'White'
+
+# Prepara uma amostra de mil e quinhentos vinhos 
+# de cada tipo e os une em uma unica amostra
+set.seed(11)
+sample.red <- sample(nrow(wine.red), 1500)
+sample.white <- sample(nrow(wine.white), 1500)
+ws <- union_all(subset(wine.red, X %in% sample.red)
+               ,subset(wine.white, X %in% sample.white))
+ws$type <- factor(ws$type)
+
+# Cria uma nova coluna classificando as notas de qualidade:
+# 01 a 04: Low
+# 05 a 06: Medium
+# 07 a 10: High
+ws$quality.bucket <-  cut(ws$quality
+                         ,c(1, 4, 6, 10)
+                         ,labels = c("Low", "Medium", "High"))
+```
+
+#### 1.1 Carga do conjunto de dados
+```{r Análise da estrutura dos dados, echo=FALSE}
+str(ws)
+```
+
+#### 1.2 Estatísticas descritivas do conjunto de dados
+```{r Resumo dos dados, echo=FALSE}
+summary(ws)
+```
+
+### 2. SEÇÃO DE GRÁFICOS UNIVARIADOS
+
+#### 2.1 Qualidade
+```{r Quality Histogram, echo=FALSE}
+ggplot(data = ws
+      ,aes(x = quality)) +
+  geom_bar() +
+  facet_wrap(~type, ncol = 1)
+
+by(ws$quality, ws$type, summary)
+```
+
+A distribuição da qualidade dos vinhos é semalhantes entre os tintos e brancos. Nesta amostra, não foram encontradas avaliações menores que 3 ou maiores que 9. Do total de vinhos, 3,8% foram avaliados com notas baixas (abaixo de 5), 78,9% foram avaliados com notas médias (5 e 6) e 17,3% foram avaliados com notas altas (acima de 6).
+
+#### 2.2 Acidez Fixa
+```{r Fixed Acidity Histogram, echo=FALSE}
+ggplot(data = ws
+      ,aes(x = fixed.acidity)) +
+  geom_histogram(binwidth = 0.2) +
+  facet_wrap(~type, ncol = 1)
+
+by(ws$fixed.acidity, ws$type, summary)
+```
+
+A acidez fixa apresenta características distintas para cada tipo de vinho. Os vinhos tintos apresentam uma distribuição assimétrica positiva entre cerca de 4 e 16 g/dm³, com concentração entre 7 e 8 g/dm³. Os vinhos brancos apresentam uma distribuição normal entre cerca de 4 e 10 g/dm³, com concentração entre 6 e 7 g/dm³ e apresentando uma exceção ao redor de 14 g/dm³. 
+
+#### 2.3 Acidez Volátil
+```{r Volatile Acidity Histogram, echo=FALSE}
+ggplot(data = ws
+      ,aes(x = volatile.acidity)) +
+  geom_histogram(binwidth = 0.02) +
+  facet_wrap(~type, ncol = 1)
+
+by(ws$volatile.acidity, ws$type, summary)
+```
+
+A acidez volátil apresenta características distintas para cada tipo de vinho. Os vinhos tintos apresentam uma distribuição bimodal entre 0,1 e 1,6 g/dm³, com um pico em 0,4 g/dm³ e outro em 0,6 g/dm³. Os vinhos brancos apresentam uma leve distribuição assimétrica positiva entre 0,1 e 1,0 g/dm³, com concentração entre 0,15 e 0,3 g/dm³.
+
+#### 2.4 Ácido Cítrico
+```{r Citric Acid Histogram, echo=FALSE}
+ggplot(data = ws
+      ,aes(x = citric.acid)) +
+  geom_histogram(binwidth = 0.02) +
+  facet_wrap(~type, ncol = 1)
+
+by(ws$citric.acid, ws$type, summary)
+```
+
+O ácido cítrico apresenta características distintas para cada tipo de vinho. Os vinhos tintos apresentam uma distribuição multimodal, entre 0 g/dm³ e  1 g/dm³, com um pico em 0 g/dm³, outro em 0,24 g/dm³ e mais um em 0,48 g/dm³. Os vinhos brancos apresentariam uma distribuição normal se não fosse por um pico em 0,48 g/dm³, curiosamente o mesmo valor que um dos picos da distribuição multimodal dos vinhos tintos.
+
+```{r Exploring Citric Acid Curiosity, echo=FALSE}
+ggplot(data = subset(ws, citric.acid >= 0.46 & citric.acid <= 0.48 )
+      ,aes(x = quality)) +
+  geom_bar() +
+  facet_wrap(~type, ncol = 1)
+```
+
+Investigando esta curiosidade, podemos observar que a distribuição da qualidade dos vinhos tintos com ácido cítrico entre 0,46 g/dm³ e 0,48 g/dm³ parace melhorar, mas aparentemente não afeta a distribuição da qualidade dos vinhos brancos.
+
+#### 2.5 Açúcar Residual
+```{r Residual Sugar Histogram, echo=FALSE}
+ggplot(data = ws
+      ,aes(x = residual.sugar)) +
+  geom_histogram(binwidth = 0.2) +
+  facet_wrap(~type, ncol = 1)
+
+by(ws$residual.sugar, ws$type, summary)
+```
+
+O açucar residual apresenta uma exceção próxima de 70 g/dm³ que dificulta a análise do histograma. Para melhorar nossa visualização, omitiremos 1% dos vinhos com os maiores valores de açucar residual.
+
+```{r Zoom Residual Sugar Histogram, echo=FALSE}
+ggplot(data = ws
+      ,aes(x = residual.sugar)) +
+  geom_histogram(binwidth = 0.2) +
+  coord_cartesian(xlim = c(0, quantile(ws$residual.sugar, 0.99))) +
+  facet_wrap(~type, ncol = 1)
+  
+```
+
+O açucar residual apresenta características distintas para cada tipo de vinho. Os vinhos tintos apresentam uma leve distribuição assimétrica positiva entre 1 e 15 g/dm³, com concentração entre 1,5 e 2,5 g/dm³. Os vinhos brancos apresentam uma distribuição assimétrica positiva e uma longa cauda, com concentração entre 1 g/dm³ e 1,5 dm³. No gráfico a seguir investigamos melhor a distribuição dos vinhos brancos utilizando a escala de log10 no eixo X. 
+
+```{r Exploring Residual Sugar Long Tail for White Wine, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = subset(ws, type == "White")
+      ,aes(x = residual.sugar)) +
+  geom_histogram(binwidth = 0.02) +
+  scale_x_log10()
+ 
+```
+
+Nesta investigação em log 10, podemos observar melhor a distribuição bimodal do açúcar residual nos vinhos brancos, sendo um dos picos uma entre 1 e 3 e outro entre 8 e 12.
+
+#### 2.6 Cloretos
+```{r Chlorides Histogram, echo=FALSE}
+ggplot(data = ws
+      ,aes(x = chlorides)) +
+  geom_histogram(binwidth = 0.005) +
+  facet_wrap(~type, ncol = 1)
+
+by(ws$chlorides, ws$type, summary)
+```
+
+Apesar de ambos os tipos de vinho apresentarem distribuição normal para o cloreto,  os picos acontecem em valores distintos, sendo cerca de 0,08 g/dm³ para o vinho tinto e 0,04 g/dm³ para o vinho branco. Este último também apresentou uma distribuição mais densa.
+
+Abaixo utilizamos o log10 no eixo x para para explorar a longa cauda dos dois tipos de vinho e observar melhor a distribuição das exceções. Podemos notar que ambos mantém uma distribuição semelhante à normal, no entanto, o pico da distribuição dos vinhos branco fica achatado.
+```{r Exploring Chlorides Long Tail, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = ws
+      ,aes(x = chlorides)) +
+  geom_histogram(binwidth = 0.025) +
+  scale_x_log10() +
+  facet_wrap(~type, ncol = 1)
+```
+
+
+#### 2.7 Dióxido de Enxofre Livre
+```{r Free Sulfur Dioxide Histogram, echo=FALSE}
+ggplot(data = ws
+      ,aes(x = free.sulfur.dioxide)) +
+  geom_histogram(binwidth = 1) +
+  facet_wrap(~type, ncol = 1)
+
+by(ws$free.sulfur.dioxide, ws$type, summary)
+```
+
+O dióxido de enxofre livre apresenta características distintas para cada tipo de vinho. Os vinhos tintos apresentam uma distribuição assimétrica positiva entre 1 e 75 mg/dm³, com concentração entre 1 e 50 mg/dm³. Os vinhos brancos apresentam uma distribuição normal entre 1 e 150 mg/dm³, com concentração entre 20 e 40 mg/dm³. 
+
+#### 2.8 Dióxido de Enxofre Total
+```{r Total Sulfur Dioxide Histogram, echo=FALSE}
+ggplot(data = ws
+      ,aes(x = total.sulfur.dioxide)) +
+  geom_histogram(binwidth = 5) +
+  facet_wrap(~type, ncol = 1)
+
+by(ws$total.sulfur.dioxide, ws$type, summary)
+```
+
+Semelhante ao dióxido de enxofre livre, o dióxido de enxofre total apresenta características distintas para cada tipo de vinho. Os vinhos tintos apresentam uma distribuição assimétrica positiva entre 5 e 160 mg/dm³, com concentração entre 5 e 50 mg/dm³. Os vinhos brancos apresentam uma distribuição normal entre 25 e 275 mg/dm³, com concentração entre 90 e 160 mg/dm³. 
+
+#### 2.9 Densidade
+```{r Density Histogram, echo=FALSE}
+ggplot(data = ws
+      ,aes(x = density)) +
+  geom_histogram(binwidth = 0.0002) +
+  facet_wrap(~type, ncol = 1)
+
+by(ws$density, ws$type, summary)
+```
+
+Apesar de ambos os tipos de vinho apresentarem distribuição normal para a densidade,  os picos acontecem em valores distintos. Como esta distribuição possui exceções com valores muito altos, omitiremos 1% dos vinhos com os maiores valores de densidade. 
+
+```{r Density Histogram Zoom, echo=FALSE}
+ggplot(data = ws
+      ,aes(x = density)) +
+  geom_histogram(binwidth = 0.0002) +
+  coord_cartesian(xlim = c(0.987, quantile(ws$density, 0.99))) +
+  facet_wrap(~type, ncol = 1)
+```
+
+Observando mais de perto as distribuições, podemos identificar que a distribuição de densidade dos vinhos tintos está entre de 0,990 e 1,004 g/cm³, com concentração entre 0,995 g/cm³ e 0,998 g/cm³. Os vinhos brancos apresentam um distribuição pouco densa entre 0,987 e 1,003 g/cm³, com concentração entre 0,9925 e 0,9975 g/cm³. 
+
+
+#### 2.10 pH
+```{r pH Histogram, echo=FALSE}
+ggplot(data = ws
+      ,aes(x = pH)) +
+  geom_histogram(binwidth = 0.01) +
+  facet_wrap(~type, ncol = 1)
+
+by(ws$pH, ws$type, summary)
+```
+
+Apesar de ambos os tipos de vinho apresentarem distribuição normal para o pH,  os picos acontecem em valores distintos, sendo cerca de 3,3 para o vinho tinto e 3,2  para o vinho branco.
+
+#### 2.11 Sulfatos
+```{r Sulphates Histogram, echo=FALSE}
+ggplot(data = ws
+      ,aes(x = sulphates)) +
+  geom_histogram(binwidth = 0.01) +
+  facet_wrap(~type, ncol = 1)
+
+by(ws$sulphates, ws$type, summary)
+```
+
+Ambos os tipos de vinho apresentam uma leve distribuição assimétrica positva para o sulfato. No entanto, os picos acontecem em valores distintos, sendo cerca de 0,6 g/dm³  para o vinho tinto e 0,4 g/dm³ para o vinho branco.
+
+
+#### 2.12 Álcool
+```{r Alcohol Histogram, echo=FALSE}
+ggplot(data = ws
+      ,aes(x = alcohol)) +
+  geom_histogram(binwidth = 0.1) +
+  facet_wrap(~type, ncol = 1)
+
+by(ws$alcohol, ws$type, summary)
+```
+
+Ambos os tipos de vinho apresentam distribuição assimétrica positiva pouco densas para o álcool. Os vinhos tintos apresentam a distribuição entre 8,4% de 15%, com concentração entre 8,5% e 9,5%. Os vinhos brancos apresentam uma distribuição entre 8,5% e 14% , com concentração entre 9% e 10,5%. 
+
+### 3. ANÁLISE UNIVARIADA
+
+#### 3.1 Qual a estrutura do conjunto de dados?
+
+O conjunto de dados é composto por 3.000 variantes do "Vinho Verde" Português, sendo 1.500 vinhos tintos e 1.500 vinhos brancos, com medições de onze propriedades químicas:
+
+- Acidez Fixa: ácido que contribui com a conservação do vinho.
+- Acidez Volátil: quantidade de ácido acético no vinho, em níveis altos pode levar a um desagradável gosto de vinagre.
+- Ácido Cítrico: encontrado em pequenas quantidades, pode adicionar "frescor" e sabor aos vinhos.
+- Açúcar Residual: quantidade de açúcar remanescente após o fim da fermentação.
+- Cloretos: quantidade de sal no vinho.
+- Dióxido de Enxofre Livre: previne o aumento de micróbios e a oxidação do vinho.
+- Dióxido de Enxofre Total: evidencia a aroma e gosto do vinho.
+- Densidade: densidade da água, depende do percentual da álcool e quantidade de açúcar.
+- pH: descreve o quão ácido ou básico é um vinho em uma escala de 0 a 14.
+- Sulfatos: aditivo que age como antimocrobiano e antioxidante.
+- Álcool: percentual de álcool presente no vinho.
+
+E uma propriedade sensorial:
+- Qualidade: nota entre 0 e 10 conferida por especialistas.
+
+Observações:
+- A maioria dos vinhos possuem qualidade média (notas 5 e 6);
+- A média de açúcar residual para vinhos tintos (2,53 g/dm³) é bem menor que a média para vinhos brancos (6,48 g/dm³);
+- A distribuição do percentual álcoolico é uma das poucas propriedades com distribuição semelhantes entre os dois tipos de vinho; 
+
+#### 3.2 Quais são os principais atributos de interesse deste conjunto de dados?
+
+O principal atributo é a qualidade do vinho, nossa variável dependente.
+
+#### 3.3 Quais outros atributos você acha que podem lhe auxiliar na investigação destes atributos de interesse?
+
+Neste primeiro momento de análises univariadas, é difícil identificar uma variável independente que se relacione bem com a qualidade. Talvez as relações do álcool e o açucar residual com as demais propriedades possam ser um ponto de partida já que são propriedades inversamente proporcionais devido ao processo de fermentação do vinho.
+
+#### 3.4 Você criou novas variáveis a partir dos atributos existentes no conjunto de dados?
+
+Esta amostra de dados foi uma união entre dados de vinhos tintos e brancos, portanto, foi criada uma variável "type" para diferenciar os registros de cada uma. Também foi criada uma classificação para a qualidade, de baixa (notas abaixo de 5), média (notas 5 e 6) e alta (notas acima de 6).
+
+#### 3.5 Dos atributos investigados, distribuições incomuns foram encontradas? Você aplicou aperações nos dados para limpá-los, ajustá-los ou mudar a forma dos dados? Se sim, por quê?
+
+Algumas propriedades como açucar residual e densidade do vinho branco possuiam exceções com valores altíssimos, sendo necessário removê-los para melhorar a visualização da distribuição. Além disso, o açucar residual do vinho branco apresentou uma longa cauda em sua distribuição, sendo necessário utilizar o log10 para identificar uma distribuição bimodal. 
+
+O ácido cítrico apresentou uma curiosa concentração entre 0,46 g/dm³ e 0,48 g/dm³ que distoa do restante da distribuição, tanto para vinhos tintos quanto para vinhos brancos. Uma olhar rápido da qualidade dos vinhos nestes valores parace apontar que há melhoria nos vinhos tintos.
+
+### 4. SEÇÃO DE GRÁFICOS BIVARIADOS
+
+Entre as propriedades químicas do vinho tinto, as que apresentam maior correlação com a qualidade, pelo método de Pearson, são o álcool (r = 0,468) e a acidez volátil (r = -0,389).  
+```{r Correlação Vinho Tinto, echo=FALSE, fig.height=10, fig.width=10}
+wsr <- cor(subset(ws
+                 ,type == "Red"
+                 ,select = -c(X, type, quality.bucket))
+          ,method = "pearson")
+corrplot.mixed(wsr)
+wsr
+```
+
+Além destes, outras propriedades que possuem correlação forte entre si são:
+- Álcool x Densidade (r = -0,499)
+- Densidade x Acidez Fixa (r = 0,674)
+- Acidez Fixa x Ácido Cítrico x (r = 0,668)
+- Ácido Cítrico x Acidez Volátil (r = -0,551)
+- pH x Ácido Cítrico (r = -0,539)
+- pH x Ácidez Fixa (r = -0,683)
+- Dóxido de Enxofre Livre x Dióxido de Enxofre Total (r = 0,6636)
+
+
+Assim como no vinho tinto, o vinho branco também apresenta maior correlação da qualidade com o álcool (r = 0,450), mas deixa de ter uma correlação boa com o a acidez volátil (r = -0,198) e passa ter uma melhor correlação com a densidade (r = -0.304).
+
+```{r Correlação Vinho Branco, echo=FALSE, fig.height=10, fig.width=10, message=FALSE, warning=FALSE}
+wsw <- cor(subset(ws
+                 ,type == "White"
+                 ,select = -c(X, type, quality.bucket))
+          ,method = "pearson")
+corrplot.mixed(wsw)
+wsw
+```
+
+As outras propriedades que possuem correlação forte entre si são:
+- Álcool x Densidade (r = -0,733)
+- Densidade x Açúcar Residual (r = 0,852)
+- Densidade x Dióxido de Enxofre Total (r = 0,6636)
+- Dióxido de Enxofre Total x Dióxido de Enxofre Livre (r = 0,602)
+
+Observamos um caminho em comum entre os dois tipos de vinho, em que a melhor correlação da qualidade é com o álcool e a melhor correlação do álcool é com a densidade. No entanto, a melhor correlação da densidade difere para os tipos de vinho, sendo a acidez fixa para o vinho tinto e o açucar residual para o vinho branco. 
+
+A seguir exploraremos melhor estas correlações.
+
+```{r Correlação Álcool x Qualidade, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = ws
+      ,aes(x = alcohol, y = quality)) +
+  geom_point(alpha = 1/4) + 
+  stat_smooth(method = 'lm') +
+  facet_wrap(~type, ncol = 1)
+  
+```
+
+```{r lm Álcool x Qualidade, echo=FALSE, message=FALSE, warning=FALSE}
+cat("Vinho Tinto: \n")
+summary(lm(formula = quality ~ alcohol, data = subset(ws, type == "Red")))
+cat("\n")
+cat("Vinho Branco: \n")
+summary(lm(formula = quality ~ alcohol, data = subset(ws, type == "White")))
+```
+
+
+
+```{r Correlação Álcool x Densidade, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = ws
+      ,aes(x = alcohol, y = density)) +
+  geom_point(alpha = 1/4) + 
+  stat_smooth(method = 'lm') +
+  coord_cartesian(xlim = c(min(ws$alcohol), quantile(ws$alcohol, 0.99))
+                 ,ylim = c(min(ws$density), quantile(ws$density, 0.99))) +
+  facet_wrap(~type, ncol = 1)
+```
+
+```{r lm Densidade x Álcool, echo=FALSE, message=FALSE, warning=FALSE}
+cat("Vinho Tinto: \n")
+summary(lm(formula = density ~ alcohol, data = subset(ws, type == "Red")))
+cat("\n")
+cat("Vinho Branco: \n")
+summary(lm(formula = density ~ alcohol, data = subset(ws, type == "White")))
+```
+
+
+```{r Correlação Densidade x Acidez Fixa, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = ws
+      ,aes(x = fixed.acidity, y = density)) +
+  geom_point(alpha = 1/4) + 
+  stat_smooth(method = 'lm') +
+  coord_cartesian(xlim = c(min(ws$fixed.acidity), quantile(ws$fixed.acidity, 0.99))
+                 ,ylim = c(min(ws$density), quantile(ws$density, 0.99))) +
+  facet_wrap(~type, ncol = 1)
+```
+
+```{r lm Densidade x Acidez Fixa, echo=FALSE, message=FALSE, warning=FALSE}
+cat("Vinho Tinto: \n")
+summary(lm(formula = density ~ fixed.acidity, data = subset(ws, type == "Red")))
+cat("\n")
+cat("Vinho Branco: \n")
+summary(lm(formula = density ~ fixed.acidity, data = subset(ws, type == "White")))
+```
+
+
+```{r Correlação Densidade x Açucar Residual, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = ws
+      ,aes(x = residual.sugar, y = density)) +
+  geom_point(alpha = 1/4) + 
+  stat_smooth(method = 'lm') +
+  coord_cartesian(xlim = c(min(ws$residual.sugar), quantile(ws$residual.sugar, 0.99))
+                 ,ylim = c(min(ws$density), quantile(ws$density, 0.99))) +
+  facet_wrap(~type, ncol = 1)
+```
+
+```{r Densidade x Açúcar Residual, echo=FALSE, message=FALSE, warning=FALSE}
+cat("Vinho Tinto: \n")
+summary(lm(formula = density ~ residual.sugar, data = subset(ws, type == "Red")))
+cat("\n")
+cat("Vinho Branco: \n")
+summary(lm(formula = density ~ residual.sugar, data = subset(ws, type == "White")))
+```
+
+Podemos observar uma tendência linear nos gráficos de dispersão acima, com exceção da relação entre densidade e acidez fixa para os vinhos brancos e da relação densidade e açúcar residual para os vinhos tintos.
+
+Apesar de apresentarem pouca correlação com a qualidade, verificaremos a distribuição destas propriedades químicas utilizadado nossa classificação de qualidade personalizada.
+
+```{r Distribuição de álcool por qualidade, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = ws
+      ,aes(x = quality.bucket, y = alcohol)) +
+  geom_boxplot() +
+  facet_wrap(~type, ncol = 2)
+
+cat("Vinho Tinto \n")
+with(subset(ws, type == "Red"), by(alcohol, quality.bucket, summary))
+cat("\n")
+cat("Vinho Branco \n")
+with(subset(ws, type == "White"), by(alcohol, quality.bucket, summary))
+```
+
+Para ambos os tipos de vinho, aqueles que classificados como de alta qualidade apresentam, em média, mais álcool que os vinhos de qualidade média ou baixa.
+
+```{r Distribuição de densidade por qualidade, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = ws
+      ,aes(x = quality.bucket, y = density)) +
+  geom_boxplot() +
+  coord_cartesian(ylim = c(min(ws$density), quantile(ws$density, 0.99))) +
+  facet_wrap(~type, ncol = 2)
+
+cat("Vinho Tinto \n")
+with(subset(ws, type == "Red"), by(density, quality.bucket, summary))
+cat("\n")
+cat("Vinho Branco \n")
+with(subset(ws, type == "White"), by(density, quality.bucket, summary))
+```
+
+Como existe uma correlação negativa entre álcool e densidade, é de se esperar que encontremos uma distribuição semelhante à anterior, em que os vinho classificados como de alta qualidade apresentam, em média, menos densidade que os vinhos de qualidade média ou baixa.
+
+```{r Distribuição de acidez fixa por qualidade, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = ws
+      ,aes(x = quality.bucket, y = fixed.acidity)) +
+  geom_boxplot() +
+  facet_wrap(~type, ncol = 2)
+
+cat("Vinho Tinto \n")
+with(subset(ws, type == "Red"), by(fixed.acidity, quality.bucket, summary))
+cat("\n")
+cat("Vinho Branco \n")
+with(subset(ws, type == "White"), by(fixed.acidity, quality.bucket, summary))
+```
+
+Para os vinhos tintos, quanto maior a média da acidez fixa, maior é a qualidade. Já para os vinhos brancos, parece haver uma discreta relação inversa, quanto menor a média de acidez fixa, maior a qualidade.
+
+```{r Distribuição de açúcar residual por qualidade, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = ws
+      ,aes(x = quality.bucket, y = residual.sugar)) +
+  geom_boxplot() +
+  coord_cartesian(ylim = c(min(ws$residual.sugar), quantile(ws$residual.sugar, 0.99))) +
+  facet_wrap(~type, ncol = 2)
+
+cat("Vinho Tinto \n")
+with(subset(ws, type == "Red"), by(residual.sugar, quality.bucket, summary))
+cat("\n")
+cat("Vinho Branco \n")
+with(subset(ws, type == "White"), by(residual.sugar, quality.bucket, summary))
+```
+
+Para o açúcar residual, não parece haver uma relação linear com a qualidade do vinho branco. A qualidade parece estar associada à "doçura" certa, não podendo ser pouco doce nem muito doce. Já para o vinho tinto, a média de açúcar residual mantém a mesma média para qualquer classificação de qualidade. 
+
+
+### 5. ANÁLISE BIVARIADA
+
+#### 5.1 Discuta sobre alguns dos relacionamentos observados nesta parte da investigação. Como os atributos de interesse variaram no conjunto de dados?
+
+Nesta investigação conseguimos definir melhor os atributos de interesse, em que o percentual alcóolico do vinho apresentou maior correlação com a qualidade, tanto para os tintos quanto para os brancos.
+
+Porém, mesmo sendo a propriedade de melhor correlação, o álcool explica apenas 22% da qualidade dos vinhos tintos (R^2 = 0,2185) e 20% dos vinhos brancos (R^2 = 0,2024).
+
+Ao classificar as notas dos especialistas em três grupos, podemos observar que os vinhos considerados de alta qualidade possuem teor alcóolico maior que os de baixa e média qualidade, possuindo em sua maioria entre 11% e 12% de álcool.
+
+
+#### 5.2 Você observou algum relacionamento interessante entre os outros atributos (os que não são de interesse)?
+
+Seguindo as correlações do álcool, a densidade apresentou o melhor coeficiente para os dois tipos de vinho. No entanto, seguindo as correlações da densidade, encontramos uma bifurcação por tipo de vinho, sendo a acidez fixa a melhor correlação para o vinho tinto e o açúcar residual a melhor correlação para o vinho branco.
+
+#### 5.3 Qual foi o relacionamento mais forte encontrado?
+
+O relacionamento mais forte encontrado foi entre densidade e açúcar residual nos vinhos brancos (r = 0,852). No entanto, estas propriedades possuem relações fracas com a qualidade.
+
+### 6. SEÇÃO DE GRÁFICOS MULTIVARIADOS
+
+```{r Acidez Fixa x Densidade x Qualidade, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = subset(ws, type == "Red")
+      ,aes(x = density, y = fixed.acidity)) +
+  geom_point(aes(colour = quality.bucket)) +
+  coord_cartesian(xlim = c(min(ws$density), quantile(ws$density, 0.99))
+                 ,ylim = c(min(ws$fixed.acidity), quantile(ws$fixed.acidity, 0.99)))
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+cat("Correlação entre acidez fixa e densidade de tintos de alta qualidade: \n")
+summary(lm(formula = density ~ fixed.acidity
+          ,data = subset(ws, type == "Red" & quality.bucket == "High")))
+cat("\n")
+cat("Correlação entre acidez fixa e densidade de tintos de média qualidade: \n")
+summary(lm(formula = density ~ fixed.acidity
+          ,data = subset(ws, type == "Red" & quality.bucket == "Medium")))
+cat("\n")
+cat("Correlação entre acidez fixa e densidade de tintos de baixa qualidade: \n")
+summary(lm(formula = density ~ fixed.acidity
+          ,data = subset(ws, type == "Red" & quality.bucket == "Low")))
+```
+
+```{r Açúcar Residual x Densidade x Qualidade, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = subset(ws, type == "White")
+      ,aes(x = density, y = residual.sugar)) +
+  geom_point(aes(colour = quality.bucket)) +
+  coord_cartesian(xlim = c(min(ws$density), quantile(ws$density, 0.99))
+                 ,ylim = c(min(ws$residual.sugar), quantile(ws$residual.sugar, 0.99)))
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+cat("Correlação entre açúcar residual e densidade de brancos de alta qualidade: \n")
+summary(lm(formula = density ~ residual.sugar
+          ,data = subset(ws, type == "White" & quality.bucket == "High")))
+cat("\n")
+cat("Correlação entre açúcar residual e densidade de brancos de média qualidade: \n")
+summary(lm(formula = density ~ residual.sugar
+          ,data = subset(ws, type == "White" & quality.bucket == "Medium")))
+cat("\n")
+cat("Correlação entre açúcar residual e densidade de brancos de baixa qualidade: \n")
+summary(lm(formula = density ~ residual.sugar
+          ,data = subset(ws, type == "White" & quality.bucket == "Low")))
+```
+
+### 7. ANÁLISE MULTIVARIADA
+
+#### 7.1 Discuta sobre os relacionamentos observados nesta parte da investigação. Quais atributos que fortaleceram os demais na observação das variáveis de interesse?
+
+Acima, exploramos as relações entre qualidade, densidade e os atributos de cada tipo de vinho que melhor se relacionam com este último. A classificação da qualidade nos auxilia a visualizar onde se encontram as distribuições dos vinhos de alta qualidade. 
+
+#### 7.2 Interações surpreendentes e/ou interessantes foram encontradas entre os atributos?
+
+Os vinhos de qualidade alta apresentam uma faixa de equilibrio entre acidez fixa e densidade para os vinhos tintos e entre açúcar residual e densidade para os vinhos brancos. Porém, é visualmente difícil identificar uma faixa que diferencie os vinhos de qualidade média dos de qualidade baixa.
+
+### 8. GRÁFICOS FINAIS E SUMÁRIO
+
+```{r Configuração do Tema, message=FALSE, warning=FALSE, include=FALSE}
+labs.theme <- theme(plot.title=element_text(color="#283747",size=14,face="bold",hjust=0.5)
+                   ,axis.title.x=element_text(color="#283747",size=11,face="bold")
+                   ,axis.title.y=element_text(color="#283747",size=11,face="bold")
+                   ,legend.title=element_text(color="#283747",size=11,face="bold"))
+```
+
+
+#### 8.1 Primeiro gráfico
+
+```{r Primeiro Gráfico, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = ws
+      ,aes(x = quality.bucket, y = alcohol, fill = quality.bucket)) +
+  geom_boxplot(show.legend = FALSE) +
+  stat_summary(fun.y = mean, geom = 'point', shape = 4, show.legend = FALSE) +
+  facet_wrap(~type, ncol = 2) +
+  labs(title = "% ALCÓOLICO POR QUALIDADE DO VINHO"
+      ,x = "Qualidade"
+      ,y = "% Alcóolico") +
+  labs.theme
+```
+
+#### 8.2 Descrição do primeiro gráfico
+
+O volume alcóolico é a propriedade química que mais se relaciona com a qualidade. No gráfico de caixa acima este relacionamento é evidenciado ao mostrar que a média e mediana do percentual alcóolico é maior para os vinhos de alta qualidade, tanto para os vinhos tintos quanto brancos. Enquanto a média do volume alcóolico nos vinhos de baixa e média qualidade é por volta de 10%, nos vinhos de alta qualidade essa média sobe para 11,5%.
+
+#### 8.3 Segundo gráfico
+
+```{r Segundo Gráfico, echo=FALSE, message=FALSE, warning=FALSE}
+ws.qs <- ws %>%
+  group_by(type, quality.bucket) %>%
+  summarise(mean.density = mean(density)) %>%
+  arrange(quality.bucket) %>%
+  ungroup()
+
+ggplot(data = ws
+      ,aes(x = density, fill = quality.bucket, color =  quality.bucket)) +
+  geom_density(alpha = 1/3) + 
+  geom_vline(data = ws.qs
+            ,aes(xintercept = mean.density, color = quality.bucket)
+            ,size = 1
+            ,show.legend = F) +
+  coord_cartesian(xlim = c(min(ws$density), quantile(ws$density, 0.99))) + 
+  facet_wrap(~type, ncol = 1) +
+  labs(title = "HISTOGRAMA DE DENSIDADE POR QUALIDADE DO VINHO"
+      ,x = "Densidade (g/ml)"
+      ,y = "Quantidade"
+      ,fill = "Qualidade"
+      ,color = "Qualidade") +
+  labs.theme
+```
+
+
+#### 8.4 Descrição do segundo gráfico
+
+A densidade é a propriedade química que melhor se relaciona com o volume alcóolico. No histograma acima observamos que os vinhos de alta qualidade, tintos e brancos, possuem em média menos densidade que as demais qualidades. Nos tintos, a média de densidade dos vinhos de baixa e média qualidade é cerca de 0,9968 g/ml e para os de alta qualidade 0,9960 g/ml. Nos brancos, essa diferença é mais acentuada, enquanto a densidade dos vinhos de baixa e média qualidade possuem, em média, cerca de 0,9946 g/ml, os de alta qualidade ficam por volta de 0,9924 g/ml. Também já é possível observar como é difícil diferenciar os vinhos de média e baixa qualidade.
+
+#### 8.5 Terceiro gráfico
+
+```{r Terceiro Gráfico, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = subset(ws, type == "Red" & quality.bucket != "Medium")
+      ,aes(x = density, y = fixed.acidity)) +
+  geom_point(aes(colour = quality.bucket)) +
+  geom_smooth(aes(colour = quality.bucket)
+             ,method = lm) +
+  coord_cartesian(xlim = c(min(ws$density), quantile(ws$density, 0.99))
+                 ,ylim = c(min(ws$fixed.acidity), quantile(ws$fixed.acidity, 0.99))) +
+  labs(title="ACIDEZ FIXA E DENSIDADE POR QUALIDADE DO VINHO TINTO"
+      ,x = "Densidade (g/ml)"
+      ,y = "Acidez fixa (g/dm³)"
+      ,color = "Qualidade") +
+  labs.theme
+
+```
+
+#### 8.6 Descrição do terceiro gráfico
+
+Para os vinhos tintos, a propriedade química que melhor se relaciona com a densidade é a acidez fixa. Neste gráfico de dispersão foram removidos os pontos de vinhos de qualidade média para facilitar visualização da diferença entre os vinhos de alta e baixa qualidade. Nele, podemos observar que os tintos de alta qualidade tendem a ter menos densidade por acidez fixa. Esta densidade pode ser explicada pela acidez fixa em 63% dos casos (R^2 = 0,6308) nos tintos de alta qualidade e em 54% dos casos (R^2 = 0,5369) nos tintos de baixa qualidade. 
+
+
+#### 8.7 Quarto gráfico
+
+```{r Quarto Gráfico, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = subset(ws, type == "White" & quality.bucket != "Medium")
+      ,aes(x = density, y = residual.sugar)) +
+  geom_point(aes(colour = quality.bucket)) +
+  geom_smooth(aes(colour = quality.bucket)
+             ,method = lm) +
+  coord_cartesian(xlim = c(min(ws$density), quantile(ws$density, 0.99))
+                 ,ylim = c(min(ws$residual.sugar), quantile(ws$residual.sugar, 0.99))) +
+  labs(title="AÇÚCAR RESIDUAL E DENSIDADE POR QUALIDADE DO VINHO BRANCO"
+      ,x = "Densidade (g/ml)"
+      ,y = "Açúcar residual (g/dm³)"
+      ,color = "Qualidade") +
+  labs.theme
+```
+
+
+
+#### 8.8 Descrição do quarto gráfico
+
+Para os vinhos brancos, a propriedade química que melhor se relaciona com a densidade é o açúcar residual. Neste gráfico de dispersão, mais uma vez, foram removidos os pontos de vinhos de qualidade média para facilitar visualização da diferença entre os vinhos de alta e baixa qualidade. Nele, podemos observar que os brancos de alta qualidade tendem a ter menos densidade por açúcar residual. Esta densidade pode ser explicada pelo açúcar residual em 68% dos casos (R^2 = 0,6844) nos brancos de alta qualidade e em 71% dos casos (R^2 = 0,7064) nos brancos de baixa qualidade. 
+
+### 9. REFLEXÃO
+
+O conjunto de dados de "Vinho Verde" Português foi elaborado por uma amostra menor de cada tipo de vinho, tintos e brancos. Iniciei o projeto analisando a distribuição das variáveis independentes uma a uma com os gráficos univariados e, aos poucos, observando as diferenças entre os vinhos tintos e brancos.
+
+Ao iniciar a análise dos gráficos bivariados, esperava encontrar pelo menos uma variável com relação forte com a qualidade. Ao invés, encontrei uma série de correlações moderadas ou fracas. O percentual alcóolico do vinho foi a propriedade química com maior correlação com a qualidade e, partindo dele, encontrei na densidade a melhor correlação com esta última. Seguindo esta lógica, explorei as diferenças entre os tipos de vinho, encontrando na acidez fixa a melhor correlação para os vinhos tintos e o açúcar residual a melhor correlação para os vinhos brancos.
+
+Neste ponto, já estava claro que a qualidade dos vinhos é definido por uma relação complexa entre as diversas propriedades químicas. Mesmo simplificando a classificação da qualidade do vinho, não ficou claro o que diferencia um vinho de qualidade baixa de um de qualidade média. Os poucos vinhos classificados com baixa qualidade podem ser uma limitação deste conjunto de dados.
+
+Ao final, foi possível encontrar sutis diferenças nos vinhos de alta qualidade ao analisar a densidade e acidez fixa para os vinhos tintos e açúcar residual e densidade para os vinhos brancos. Para futuros trabalhos, podem ser utilizadas técnicas estatísticas para seleção e combinação das propriedades químicas para procurar um modelo preditivo de qualidade, visto que os componentes da qualidade do vinho parecem se basear em um equilíbrio de diversos atributos.
+
+
+### 10. REFERÊNCIAS
+
+https://en.wikipedia.org/wiki/Acids_in_wine#In_wine_tasting
+
+https://pt.wikipedia.org/wiki/PH
+
+https://en.wikipedia.org/wiki/Feature_selection
+
+https://pt.wikipedia.org/wiki/Estatística_descritiva
+
+https://en.wikipedia.org/wiki/Effect_size 
+
+https://en.wikipedia.org/wiki/Correlation_and_dependence
+
+http://rmarkdown.rstudio.com/index.html
+
+https://cran.r-project.org/web/packages/corrplot/vignettes/corrplot-intro.html
+
+https://s3.amazonaws.com/udacity-hosted-downloads/ud651/wineQualityInfo.txt 
+
+https://onlinecourses.science.psu.edu/stat857/node/224 
+
+https://stackoverflow.com/questions/14395569/how-to-output-text-in-the-r-console-without-creating-new-lines
+
+https://stackoverflow.com/questions/23519224/extract-r-square-value-with-r-in-linear-models
+
+https://stackoverflow.com/questions/12410908/combine-legends-for-color-and-shape-into-a-single-legend 
+
+https://stackoverflow.com/questions/37660694/add-legend-to-geom-vline 
+
+https://stackoverflow.com/questions/21982987/mean-per-group-in-a-data-frame 
+
+https://stackoverflow.com/questions/19876505/boxplot-show-the-value-of-mean
+
+https://pt.stackoverflow.com/questions/6112/como-remover-uma-coluna-do-data-frame-em-r/6128#6128
+
+http://ggplot2.tidyverse.org/reference/scale_brewer.html
+
+http://ggplot2.tidyverse.org/reference/labs.html 
+
+http://ggplot2.tidyverse.org/reference/geom_density.html 
+
+http://ggplot2.tidyverse.org/reference/geom_bar.html 
+
+http://www.sthda.com/english/wiki/ggplot2-density-plot-quick-start-guide-r-software-and-data-visualization 
+
+http://www.sthda.com/english/wiki/ggplot2-title-main-axis-and-legend-titles
