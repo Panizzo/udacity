@@ -7,19 +7,20 @@ February, 2020
 
 ### Domain Background
 
-The usage of Neural Networks for image diagnosis is quickly growing in the field of medical research an its usage and efficiency are already being tested on clinics, laboratories and hospitals. With a variety of usage possibilities like cancer detection, classify lesion types or mental illness, the perspectives are enthusiastics. As I have an intense contact with doctors who work with diagnostic imaging and I frequently discuss the use of new technologies in the area, I intend to use this project as a starting point to delve deeper into the subject and perhaps participate in research projects in the area as Machine Learning engineer.
+The usage of Neural Networks for image diagnosis is quickly growing in the field of medical research an its usage and efficiency are already being tested on clinics, laboratories and hospitals. With a variety of usage possibilities like cancer detection, classification of lesion types or mental illness, the perspectives are enthusiastics. Recently the Convolutional Neural Networks (CNN) emerged as the most common class of Neural Network for analyzing visual imagery. CNNs are regularized versions of multilayer perceptrons, they take advantage of the hierarquical pattern in data and assemble more complex patterns using smaller and simpler patterns (a.k.a. filtering and pooling the images). This means that a CNN can detect patterns (features) in an image without a pixel losing his correlation with its pixel neighbors. As I have an intense contact with doctors who work with diagnostic imaging and I frequently discuss the use of new technologies in the area, I intend to use this project as a starting point to delve deeper into the subject and perhaps participate in research projects in the area as Machine Learning engineer.
 
 Reference: https://www.researchgate.net/publication/285912467_Artificial_Neural_Networks_in_Medical_Diagnosis
+Wikipedia: https://en.wikipedia.org/wiki/Convolutional_neural_network 
 
 ### Problem Statement
 
-This project is based on the "Histopathologic Cancer Detection" Kaggle Competition, a project to identify metastatic tissue in histopathologic scans of lymph node sections. In others words, identify the presence of tumor cells in digital pathology scans. The expected results of this project is to train a Neural Network model to make a binary clssification of the presence of tumor (true or false) from a given image.
+This project is based on the "Histopathologic Cancer Detection" Kaggle Competition, a project to identify metastatic tissue in histopathologic scans of lymph node sections. In others words, identify the presence of tumor cells in digital pathology scans. The expected results of this project is to train a Convolutional Neural Network model to make a binary classification of the presence of tumor (true or false) from a given image.
 
 Reference: https://www.kaggle.com/c/histopathologic-cancer-detection/overview 
 
 ### Datasets and Inputs
 
-In this dataset, we are provided with a large number of small pathology images to classify. Files are named with an image id. The train_labels.csv file provides the ground truth for the images in the train folder. You are predicting the labels for the images in the test folder. A positive label indicates that the center 32x32px region of a patch contains at least one pixel of tumor tissue. Tumor tissue in the outer region of the patch does not influence the label. This outer region is provided to enable fully-convolutional models that do not use zero-padding, to ensure consistent behavior when applied to a whole-slide image.
+In this dataset, we are provided with a large number of small pathology images to classify. Files are named with an image id. The train_labels.csv file provides the ground truth for the images in the train folder. We are predicting the labels for the images in the test folder. A positive label indicates that the center 32x32px region of a patch contains at least one pixel of tumor tissue. Tumor tissue in the outer region of the patch does not influence the label. This outer region is provided to enable fully-convolutional models that do not use zero-padding, to ensure consistent behavior when applied to a whole-slide image. The image files have a distribution around 60% for negative labels and 40% for positive labels. Other image features should be analyzed during the exploratory data analysis of the images.
 
 The original PCam dataset contains duplicate images due to its probabilistic sampling, however, the version presented on Kaggle does not contain duplicates. We have otherwise maintained the same data and splits as the PCam benchmark.
 
@@ -37,7 +38,7 @@ https://www.kaggle.com/CVxTz/cnn-starter-nasnet-mobile-0-9709-lb
 
 ### Evaluation Metrics
 
-The submissions for this competition are evaluated on area under the ROC curve between the predicted probability and the observed target. In the submission file, for each id in the test set, we must predict a probability that center 32x32px region of a patch contains at least one pixel of tumor tissue. The file should contain a header and have the following format: 
+The submissions for this competition are evaluated on area under the Receiver Operating Characteristic (ROC) curve between the predicted probability and the observed target. ROC curve is a performance measurement for classification problems. It tells how much a model is capable of distinguishing between classes and is plotted with True Positive Rate (TPR) against the False Positive Rate (FPR). For the submission file nedded for evaluating our model in the competition, for each id in the test set, we must predict a probability that center 32x32px region of a patch contains at least one pixel of tumor tissue. The file should contain a header and have the following format: 
 
 id,label
 0b2ea2a822ad23fdb1b5dd26653da899fbd2c0d5,0
@@ -45,6 +46,9 @@ id,label
 248e6738860e2ebcf6258cdc1f32f299e0c76914,0
 etc.
 
+Reference: https://www.kaggle.com/c/histopathologic-cancer-detection/overview/evaluation
+Reference: https://machinelearningmastery.com/roc-curves-and-precision-recall-curves-for-classification-in-python/ 
+Reference: https://towardsdatascience.com/understanding-auc-roc-curve-68b2303cc9c5
 
 ### Project Design
 
